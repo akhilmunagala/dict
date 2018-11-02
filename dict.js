@@ -24,3 +24,22 @@ var options = {
         "cache-control": "no-cache"
       }
 };
+
+// getting data from API
+let oxford = (callback) =>{
+
+	https.get(options, (res) =>{
+		
+		let rawData = '';
+		res.on('data', (chunk)=> rawData+= chunk); // adding chunks
+		res.on('end',()=>{
+			// console.log(rawData);
+			try{
+				let parsedData = JSON.parse(rawData); //convert string to json object
+				callback(parsedData); //send parsed data to caller
+			}catch(e){
+				console.log(e.message); //print error message if paring goes wrong.
+			}
+		});
+	});
+}
