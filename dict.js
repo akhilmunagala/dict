@@ -32,18 +32,26 @@ let oxford = (callback) =>{
 	https.get(options, (res) =>{
 		
 		let rawData = '';
+		let statusCode = res.statusCode;
 		res.on('data', (chunk)=> rawData+= chunk); // adding chunks
 		res.on('end',()=>{
 			// console.log(rawData);
-			try{
+			if(statusCode == 200){
+				try{
 				let parsedData = JSON.parse(rawData); //convert string to json object
 				callback(parsedData); //send parsed data to caller
-			}catch(e){
-				console.error('Please enter valid word (Note: must use singular words only)'); //print error message if paring goes wrong.
-				// process.exit();
+				}catch(e){
+					// print message if there is error in parsing the data	
+					console.log(e.message);			}
+			}else{
+				// send status code if there is error in finding the word in oxford api
+				callback(statusCode);
 			}
+			
 		});
-	});
+	}).on('error', (err) => {
+    	console.error(err);
+  	});
 }
 
 let definitions = (word, callback)=>{
@@ -83,9 +91,17 @@ let antonyms = (word, callback)=>{
 
 };
 
-let isEmpty = (obj) => {
-    return Object.keys(obj).length === 0;
+
+let printError = (type,word)=>{
+	console.log(`\n\x1b[31mNo ${type} found for the word ${word} \x1b[0m`);
 };
+
+let dictionary = (word)=>{
+	printDefinitions(word);
+	printSynonyms(word);
+	printAntonyms(word);
+	examples(word);
+}
 
 
 let examples = (word)=>{
@@ -96,44 +112,62 @@ let examples = (word)=>{
 	// calling API for data for the word
 	oxford((data)=>{
 		// processing examples data
-		let examples = data.results[0].lexicalEntries[0].entries[0].senses[0].examples;
-		try{
-			if(!isEmpty(examples)){
-      			console.log('\x1b[93m Example usages for the word "'+word+'": \x1b[0m');
-				for(let index in examples){
-		        console.log((parseInt(index)+1) +'\t'+ examples[index].text);
-		      }
-			}else{
-				console.log(`No examples found for the word : ${word}`);
-			}
-		}catch(e){
-			console.log(`No examples found for the word : ${word}`);
-		}
+		if(typeof data == 'object'){
+		let words = data.results[0].lexicalEntries[0].entries[0].senses[0].examples;
+		
+			try{
+				if(typeof data !== 'undefined' && words.length > 0){
+	      			console.log('\x1b[93m Example usages for the word "'+word+'": \x1b[0m');
+					for(let index in words){
+				        console.log((parseInt(index)+1) +'\t'+ words[index].text);
+				      }
+				}else{printError("examples",word);}
+			}catch(e){printError("examples",word);}
+	}else{printError("examples",word);}
 	});
-}
-
-let dictionary = (word)=>{
-	printDefinitions(word);
-	printSynonyms(word);
-	printAntonyms(word);
-	examples(word);
 }
 
 let printDefinitions = (word) => {
   definitions(word, (data) => {
-	console.log(data.results[0].lexicalEntries[0].entries[0].senses[0].definitions[0]);
+  		if(typeof data == 'object'){
+	  		let words = data.results[0].lexicalEntries[0].entries[0].senses[0].definitions;
+			
+			if(typeof words !== 'undefined' && words.length >0){
+				console.log('\x1b[93m Definitions for the word "'+word+'": \x1b[0m');
+				for(let index in words){
+					console.log((parseInt(index)+1) + '\t' +words[index]);
+				}
+			}else{printError("definitions",word);}
+		}else{printError("definitions",word);}
   });
 };
 
 let printAntonyms = (word) =>{
 	antonyms(word, (data)=>{
-		console.log(data.results[0].lexicalEntries[0].entries[0].senses[0].antonyms[0].text);
+		if(typeof data == 'object'){
+			let words = data.results[0].lexicalEntries[0].entries[0].senses[0].antonyms;
+			if(typeof words !== 'undefined' && words.length >0){
+				console.log('\n\x1b[93mAntonyms for the word "'+word+'": \x1b[0m');
+
+				for(let index in words){
+					console.log((parseInt(index)+1) + '\t' +words[index].text);
+				}
+			}else{printError("antonyms",word);}
+		}else{printError("antonyms",word);}
 	});
 }
 
 let printSynonyms = (word)=>{
 	synonyms(word, (data) =>{
-		console.log(data.results[0].lexicalEntries[0].entries[0].senses[0].synonyms[1].text);
+		if(typeof data == 'object'){
+			let words = data.results[0].lexicalEntries[0].entries[0].senses[0].synonyms;
+			if(typeof words !== 'undefined' && words.length >0){
+				console.log('\x1b[93m The Synonyms for the word "'+word+'": \x1b[0m');
+				for(let index in words){
+					console.log((parseInt(index)+1) + '\t' +words[index].text);
+				}
+			}else{ printError("synonyms",word);}
+		}else{printError("synonyms",word);}
 	});
 }
 
