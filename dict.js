@@ -2,6 +2,7 @@ console.log("Command line tool that uses Oxford dictionary API");
 
 // requirements
 const https = require('https');
+const readline = require('readline');
 
 // command line arguments
 const args = process.argv;
@@ -42,7 +43,8 @@ let oxford = (callback) =>{
 				callback(parsedData); //send parsed data to caller
 				}catch(e){
 					// print message if there is error in parsing the data	
-					console.log(e.message);			}
+					console.log(e.message);
+				}
 			}else{
 				// send status code if there is error in finding the word in oxford api
 				callback(statusCode);
@@ -91,7 +93,7 @@ let antonyms = (word, callback)=>{
 
 };
 
-
+// printing error messages with color codes
 let printError = (type,word)=>{
 	console.log(`\n\x1b[31mNo ${type} found for the word ${word} \x1b[0m`);
 };
@@ -103,7 +105,7 @@ let dictionary = (word)=>{
 	examples(word);
 }
 
-
+// prints examples for the word
 let examples = (word)=>{
 	// reset the path
 	options.path= path;
@@ -111,13 +113,13 @@ let examples = (word)=>{
 	options.path+= word;
 	// calling API for data for the word
 	oxford((data)=>{
-		// processing examples data
-		if(typeof data == 'object'){
+		// check if the callback is object or error code
+		if(typeof data == 'object'){ 
+		// assigning examples path in object to words for code redability 
 		let words = data.results[0].lexicalEntries[0].entries[0].senses[0].examples;
-		
-			try{
+			try{ //test if the examples path present in data object
 				if(typeof data !== 'undefined' && words.length > 0){
-	      			console.log('\x1b[93m Example usages for the word "'+word+'": \x1b[0m');
+	      			console.log('\n\x1b[93mExample usages for the word "'+word+'": \x1b[0m');
 					for(let index in words){
 				        console.log((parseInt(index)+1) +'\t'+ words[index].text);
 				      }
@@ -133,7 +135,7 @@ let printDefinitions = (word) => {
 	  		let words = data.results[0].lexicalEntries[0].entries[0].senses[0].definitions;
 			
 			if(typeof words !== 'undefined' && words.length >0){
-				console.log('\x1b[93m Definitions for the word "'+word+'": \x1b[0m');
+				console.log('\n\x1b[93mDefinitions for the word "'+word+'": \x1b[0m');
 				for(let index in words){
 					console.log((parseInt(index)+1) + '\t' +words[index]);
 				}
@@ -162,7 +164,7 @@ let printSynonyms = (word)=>{
 		if(typeof data == 'object'){
 			let words = data.results[0].lexicalEntries[0].entries[0].senses[0].synonyms;
 			if(typeof words !== 'undefined' && words.length >0){
-				console.log('\x1b[93m The Synonyms for the word "'+word+'": \x1b[0m');
+				console.log('\n\x1b[93mThe Synonyms for the word "'+word+'": \x1b[0m');
 				for(let index in words){
 					console.log((parseInt(index)+1) + '\t' +words[index].text);
 				}
@@ -171,10 +173,127 @@ let printSynonyms = (word)=>{
 	});
 }
 
-// play
-let playgame = ()=>{
-	console.log("game is under construction");
+let randomWord = (callback)=>{
+	let words = ["accept","dead","modern","admit","answer","natural","good","attack","ending","straight","big","bold","hot","kind","dark","clear","import","fail","friend"];
+	let word = words[Math.floor(Math.random()*words.length)];
+	let data ={
+		"word" : word
+	};
+	
+	callback(data);
 }
+
+function shuffle (word){
+    var shuffledWord = '';
+    word = word.split('');
+    while (word.length > 0) {
+      shuffledWord +=  word.splice(word.length * Math.random() << 0, 1);
+    }
+    return shuffledWord;
+}
+
+
+let printGameRetryText = () => {
+  console.log('\nYou have entered incorrect word.');
+  console.log('Choose the options from below menu:');
+  console.log('\t1. Try Again');
+  console.log('\t2. Hint');
+  console.log('\t3. Quit');
+};
+
+let playgame = () => {
+  let game_word;
+  let game_word_definitions = new Array();
+  randomWord((data) => {
+    //console.log('Random Word is: ' + data.word);
+    game_word = data.word.replace(" ", "%20");
+    //console.log('Game Word: ' + game_word);
+    definitions(game_word, (data) => {
+  		if(typeof data == 'object'){
+	  		let words = data.results[0].lexicalEntries[0].entries[0].senses[0].definitions;
+			
+			if(typeof words !== 'undefined' && words.length >0){
+				for(let index in words){
+          			game_word_definitions[index] =  words[index];
+				}
+			}else{console.log('\x1b[31m Error occured in the process.\nProcess will exit now. \x1b[0m');
+        process.exit();}
+		}else{console.log('\x1b[31m Error occured in the process.\nProcess will exit now. \x1b[0m');
+        process.exit();}
+  
+      synonyms(game_word, (data) => {
+        let game_word_synonyms;
+        let hasSynonyms = false;
+        let syn = data.results[0].lexicalEntries[0].entries[0].senses[0].synonyms;
+        if(syn.length >= 1){
+          hasSynonyms = true;
+          game_word_synonyms = syn;
+          //console.log('The Length of synonyms: ' + game_word_synonyms.length);
+          //console.log('synonyms : '+game_word_synonyms);
+        }
+
+
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        console.log('Press "Ctrl + C" to exit the program.');
+        console.log('Find the word with the following definition');
+        console.log('Definition :\n\t'+game_word_definitions[0]);
+        console.log('Type the word and press the ENTER key.');
+        rl.on('line', (input) => {
+          let correctAnswer = false;
+          if(hasSynonyms){
+            for(let index in game_word_synonyms){
+              if(`${input}` == game_word_synonyms[index].text){
+                console.log('Congratulations! You have entered correct synonym for the word "'+game_word+'"');
+                rl.close();
+                correctAnswer = true;
+              }
+            }
+          }
+
+          
+          if(`${input}` === game_word){
+            console.log('Congratulations! You have entered correct word.');
+            rl.close();
+          }else{
+            if(`${input}` == '3'){
+              rl.close();
+            }
+            if(!(`${input}` == '1' || `${input}` == '2' || `${input}` == '3') && !correctAnswer){
+              printGameRetryText();
+            }
+            switch(parseInt(`${input}`)){
+              case 1:
+                console.log('Please try to guess the word again:');
+              break;
+              case 2:
+                let randomNumber = Math.floor((Math.random() * parseInt(game_word_definitions.length)) + 1);
+                //console.log('Random Number : ' + randomNumber);
+                if(randomNumber == game_word_definitions.length){
+                  randomNumber = game_word_definitions.length - 1;
+                }
+                console.log('Hint:');
+                console.log('\tDefinition :\t' + game_word_definitions[randomNumber]);
+                console.log('\nRandomly jumbled :\t'+shuffle(game_word));
+                console.log('\nTry to guess the word again using the hint provided.');
+                console.log('Enter the word:');
+              break;
+              case 3:
+                console.log('The correct word is : ' + game_word);
+                console.log('Thank you for trying out this game. \nGame Ended.');
+                rl.close();
+              break;
+              default:
+            }
+          }
+        });
+      });
+    });
+  });
+
+};
 
 
 // printhelp
